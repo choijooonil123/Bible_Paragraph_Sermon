@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>설교 편집</title>
+<style>
+:root{--bg:#0b1220;--card:#0f172a;--text:#e5e7eb;--muted:#9ca3af;--border:#1f2a44}
+body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,Apple SD Gothic Neo,Noto Sans KR,sans-serif}
+header{position:sticky;top:0;z-index:10;background:rgba(15,23,42,.85);backdrop-filter:saturate(140%) blur(6px);border-bottom:1px solid var(--border);}
+header .wrap{display:flex;gap:16px;align-items:center;justify-content:space-between;padding:12px 16px;max-width:1100px;margin:0 auto}
+h1{font-size:18px;margin:0;font-weight:700}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--border);background:#111a2e;color:var(--text);border-radius:10px;cursor:pointer;text-decoration:none}
+.btn:hover{border-color:#2b3658}
+main{max-width:1100px;margin:24px auto;padding:0 16px}
+#editor{min-height:60vh;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;outline:none}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}
+.small{color:var(--muted);font-size:13px}
+</style>
+<script>
+function save(){
+  localStorage.setItem('sermon_html', document.getElementById('editor').innerHTML);
+  alert('저장 완료');
+}
+function load(){
+  const v = localStorage.getItem('sermon_html');
+  if(v){ document.getElementById('editor').innerHTML = v; }
+}
+function clearAll(){
+  if(confirm('내용을 모두 지울까요?')){
+    document.getElementById('editor').innerHTML = '';
+    localStorage.removeItem('sermon_html');
+  }
+}
+function back(){ location.href = './index.html'; }
+document.addEventListener('DOMContentLoaded', load);
+</script>
+</head>
+<body>
+<header><div class="wrap">
+  <h1>설교 페이지 (붙여넣기/편집/보존)</h1>
+  <div>
+    <button class="btn" onclick="back()">본문으로</button>
+    <button class="btn" onclick="save()">저장</button>
+    <button class="btn" onclick="clearAll()">모두 지우기</button>
+  </div>
+</div></header>
+<main>
+  <p class="small">여기에 ChatGPT에서 출력된 설교 내용을 <b>그대로 붙여넣기</b> 하시면 스타일까지 유지됩니다. 이후에 언제든지 수정할 수 있으며, 내용은 브라우저의 <b>localStorage</b>에 저장됩니다.</p>
+  <div id="editor" contenteditable="true"><h2>여기에 설교 내용을 붙여넣으세요</h2><p class="small">서식(굵게, 기울임, 색상, 목록 등)을 유지합니다. 저장을 누르면 이 브라우저에 보존됩니다.</p></div>
+</main>
+</body>
+</html>
