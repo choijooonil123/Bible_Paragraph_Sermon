@@ -13,41 +13,72 @@ h1{font-size:18px;margin:0;font-weight:700}
 .btn{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--border);background:#111a2e;color:var(--text);border-radius:10px;cursor:pointer;text-decoration:none}
 .btn:hover{border-color:#2b3658}
 main{max-width:1100px;margin:24px auto;padding:0 16px}
+#info{margin:6px 0 10px;color:var(--muted);font-size:14px}
 #editor{min-height:60vh;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;outline:none}
-.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}
 .small{color:var(--muted);font-size:13px}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}
 </style>
 <script>
+function qs(){
+  const u = new URL(location.href);
+  return {
+    book: u.searchParams.get('book') || '',
+    chap: u.searchParams.get('chap') || '',
+    start: u.searchParams.get('start') || '',
+    end: u.searchParams.get('end') || '',
+    title: u.searchParams.get('title') || ''
+  };
+}
+function storageKey(q){
+  if(q.book && q.chap && q.start && q.end){
+    return `sermon_${q.book}_${q.chap}_${q.start}_${q.end}`;
+  }
+  return 'sermon_default';
+}
 function save(){
-  localStorage.setItem('sermon_html', document.getElementById('editor').innerHTML);
+  const q = qs();
+  localStorage.setItem(storageKey(q), document.getElementById('editor').innerHTML);
   alert('저장 완료');
 }
 function load(){
-  const v = localStorage.getItem('sermon_html');
+  const q = qs();
+  const key = storageKey(q);
+  const v = localStorage.getItem(key);
+  const titleEl = document.getElementById('title');
+  const infoEl = document.getElementById('info');
+  if(q.title){
+    titleEl.textContent = q.title;
+  }else if(q.book){
+    titleEl.textContent = `${q.book} ${q.chap}장 ${q.start}–${q.end}절`;
+  }
+  infoEl.textContent = key;
   if(v){ document.getElementById('editor').innerHTML = v; }
 }
 function clearAll(){
-  if(confirm('내용을 모두 지울까요?')){
+  const q = qs();
+  const key = storageKey(q);
+  if(confirm('현재 본문에 대한 설교 내용을 모두 지울까요?')){
     document.getElementById('editor').innerHTML = '';
-    localStorage.removeItem('sermon_html');
+    localStorage.removeItem(key);
   }
 }
-function back(){ location.href = './index.html'; }
+function back(){ history.length > 1 ? history.back() : location.href = './index.html'; }
 document.addEventListener('DOMContentLoaded', load);
 </script>
 </head>
 <body>
 <header><div class="wrap">
-  <h1>설교 페이지 (붙여넣기/편집/보존)</h1>
+  <h1 id="title">설교 페이지</h1>
   <div>
     <button class="btn" onclick="back()">본문으로</button>
     <button class="btn" onclick="save()">저장</button>
-    <button class="btn" onclick="clearAll()">모두 지우기</button>
+    <button class="btn" onclick="clearAll()">이 본문 설교 삭제</button>
   </div>
 </div></header>
 <main>
-  <p class="small">여기에 ChatGPT에서 출력된 설교 내용을 <b>그대로 붙여넣기</b> 하시면 스타일까지 유지됩니다. 이후에 언제든지 수정할 수 있으며, 내용은 브라우저의 <b>localStorage</b>에 저장됩니다.</p>
-  <div id="editor" contenteditable="true"><h2>여기에 설교 내용을 붙여넣으세요</h2><p class="small">서식(굵게, 기울임, 색상, 목록 등)을 유지합니다. 저장을 누르면 이 브라우저에 보존됩니다.</p></div>
+  <p class="small">ChatGPT에서 출력된 설교를 <b>그대로 붙여넣기</b> 하면 스타일이 유지됩니다. 저장하면 이 브라우저의 <b>localStorage</b>에 본문별로 보존됩니다.</p>
+  <div id="info" class="small"></div>
+  <div id="editor" contenteditable="true"><h2>여기에 설교 내용을 붙여넣으세요</h2><p class="small">굵게/기울임/색상/목록 등 서식이 유지됩니다.</p></div>
 </main>
 </body>
 </html>
