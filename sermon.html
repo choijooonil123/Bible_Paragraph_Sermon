@@ -215,8 +215,8 @@
       if (document.hidden && isReading) stopReading();
     });
 
-    // 초기 상태
-    statusEl.textContent = '저장 안 됨';
+    // ✅ 페이지 로드시 저장본 자동 표시
+    loadFromLocal();  // ← 이것만 추가하면 됩니다!
   </script>
 </body>
 </html>
