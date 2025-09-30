@@ -2,70 +2,89 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>저장된 설교 낭독(절 단위)</title>
+  <title>저장된 설교 낭독(절 단위) + 저장</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans KR", sans-serif; margin: 24px; }
     h2 { margin: 0 0 12px; }
-    .bar { display: flex; gap: 8px; align-items: center; margin: 8px 0 12px; }
+    .bar { display: flex; gap: 8px; align-items: center; margin: 8px 0 12px; flex-wrap: wrap; }
     #sermonBox {
       border: 1px solid #ddd; border-radius: 8px; padding: 12px;
       min-height: 280px; max-height: 60vh; overflow-y: auto;
       line-height: 1.7; white-space: pre-wrap; outline: none;
+      background: #fafafa;
     }
-    #sermonBox[contenteditable="true"] { background: #fafafa; }
     .line { padding: 2px 0; }
     .highlight { background: #fff59d; border-radius: 4px; }
-    #btnRead { padding: 8px 14px; border-radius: 8px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
+    button {
+      padding: 8px 14px; border-radius: 8px; border: 1px solid #ccc; background: #fff; cursor: pointer;
+    }
     #btnRead.active { background: #9BE89B; border-color: #6bc66b; }
     .tip { color: #666; font-size: 0.92rem; }
+    .muted { color: #888; font-size: 0.9rem; }
+    #status { margin-left: 6px; font-size: 0.9rem; }
+    .hidden { display: none; }
+    pre.demo { margin:6px 0 0; background:#f6f6f6; padding:6px 8px; border-radius:6px; }
   </style>
 </head>
 <body>
   <h2>저장된 설교 낭독 (절 단위 하이라이트)</h2>
 
-  <div class="tip">아래 박스에 <b>저장된 설교문을 붙여넣으세요</b> (한 줄 = 한 절).<br/>예:
-    <pre style="margin:6px 0 0; background:#f6f6f6; padding:6px 8px; border-radius:6px;">1 태초에 하나님이 천지를 창조하시니라
+  <div class="tip">
+    아래 박스에 <b>저장된 설교문을 붙여넣으세요</b> (한 줄 = 한 절).
+    <pre class="demo">1 태초에 하나님이 천지를 창조하시니라
 2 하나님이 가라사대 빛이 있으라 하시매...</pre>
   </div>
 
   <div class="bar">
     <button id="btnRead">낭독</button>
-    <span class="tip">읽는 동안 현재 줄을 노란색으로 표시합니다.</span>
+    <button id="btnSave">저장</button>
+    <button id="btnLoad">불러오기</button>
+    <button id="btnExport">내보내기</button>
+    <button id="btnImport">가져오기</button>
+    <span id="status" class="muted">저장 안 됨</span>
+    <input id="fileInput" type="file" accept=".txt,text/plain" class="hidden" />
   </div>
 
-  <!-- 여기에 설교문을 붙여넣고 바로 낭독합니다 -->
+  <!-- 여기에 설교문을 붙여넣고 바로 낭독/저장 -->
   <div id="sermonBox" contenteditable="true" spellcheck="false" placeholder="여기에 설교문을 붙여넣으세요. 한 줄이 한 절이 되도록 줄바꿈으로 구분하세요."></div>
 
   <script>
+    // --- 요소 참조 ---
     const box = document.getElementById('sermonBox');
-    const btn = document.getElementById('btnRead');
+    const btnRead = document.getElementById('btnRead');
+    const btnSave = document.getElementById('btnSave');
+    const btnLoad = document.getElementById('btnLoad');
+    const btnExport = document.getElementById('btnExport');
+    const btnImport = document.getElementById('btnImport');
+    const fileInput = document.getElementById('fileInput');
+    const statusEl = document.getElementById('status');
 
+    // --- 상태 ---
+    const LS_KEY = 'sermon_saved_v1';
     let isReading = false;
     let currentIndex = 0;
     let lines = [];
+    let dirty = false; // 저장 필요 여부
 
-    // contenteditable에 붙여넣은 원문을 '줄'로 분리해서 렌더
+    // --- 유틸 ---
+    const escapeHtml = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const getPlainText = el => (el.innerText || el.textContent || '').replace(/\u00A0/g, ' ');
+    const fmtDate = d => {
+      const z = n => String(n).padStart(2,'0');
+      return d.getFullYear() + z(d.getMonth()+1) + z(d.getDate()) + '-' + z(d.getHours()) + z(d.getMinutes());
+    };
+
+    // --- 렌더/하이라이트 ---
     function normalizeAndRender() {
       const raw = getPlainText(box).trim();
-      lines = raw.length ? raw.split(/\r?\n/) : [];
-      box.innerHTML = lines.map(line => `<div class="line">${escapeHtml(line)}</div>`).join('') || '';
+      lines = raw ? raw.split(/\r?\n/) : [];
+      // contenteditable 내부를 줄(div)로 재구성
+      box.innerHTML = lines.map(line => `<div class="line">${escapeHtml(line)}</div>`).join('');
       currentIndex = 0;
       clearHighlight();
     }
 
-    // contenteditable에서 순수 텍스트 얻기
-    function getPlainText(el) {
-      // 브라우저별 줄바꿈 처리 보정
-      return (el.innerText || el.textContent || '').replace(/\u00A0/g, ' ');
-    }
-
-    // HTML 이스케이프
-    function escapeHtml(s) {
-      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    }
-
-    // 줄 하이라이트/스크롤
     function highlight(idx) {
       const children = [...box.children];
       children.forEach((el, i) => el.classList.toggle('highlight', i === idx));
@@ -75,26 +94,25 @@
       [...box.children].forEach(el => el.classList.remove('highlight'));
     }
 
-    // 한 줄(절) 읽기 → Promise
+    // --- TTS ---
     function speakLine(text) {
       return new Promise(resolve => {
         const u = new SpeechSynthesisUtterance(text);
-        u.lang = 'ko-KR';  // 한국어
-        u.rate = 1.0;      // 속도(원하면 0.9~1.1 정도로 조절)
-        u.onstart = () => {};
+        u.lang = 'ko-KR';
+        u.rate = 1.0;
         u.onend = () => resolve();
         speechSynthesis.speak(u);
       });
     }
 
     async function startReading() {
-      // 먼저 현재 내용을 줄 단위로 정리/렌더
+      // 최신 내용 기준으로 읽기
       normalizeAndRender();
       if (!lines.length) { stopReading(); return; }
 
       isReading = true;
-      btn.classList.add('active');
-      btn.textContent = '중지';
+      btnRead.classList.add('active');
+      btnRead.textContent = '중지';
 
       for (let i = currentIndex; i < lines.length; i++) {
         if (!isReading) break;
@@ -102,37 +120,103 @@
         await speakLine(lines[i]);
         currentIndex = i + 1;
       }
-      stopReading(); // 끝나면 버튼/상태 초기화
+      stopReading();
     }
 
     function stopReading() {
       isReading = false;
-      speechSynthesis.cancel(); // 즉시 중지
-      btn.classList.remove('active');
-      btn.textContent = '낭독';
+      speechSynthesis.cancel();
+      btnRead.classList.remove('active');
+      btnRead.textContent = '낭독';
       currentIndex = 0;
       clearHighlight();
     }
 
-    // 버튼 토글
-    btn.addEventListener('click', () => {
+    // --- 저장/불러오기 (LocalStorage) ---
+    function saveToLocal() {
+      const raw = getPlainText(box);
+      localStorage.setItem(LS_KEY, raw);
+      dirty = false;
+      statusEl.textContent = '저장됨 (' + fmtDate(new Date()) + ')';
+    }
+
+    function loadFromLocal() {
+      const raw = localStorage.getItem(LS_KEY) || '';
+      box.innerText = raw;  // 붙여넣기처럼 텍스트로 채움
+      normalizeAndRender();
+      dirty = false;
+      statusEl.textContent = raw ? '불러옴' : '저장본 없음';
+    }
+
+    // --- 파일 내보내기/가져오기 ---
+    function exportToFile() {
+      const raw = getPlainText(box);
+      const blob = new Blob([raw], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'sermon-' + fmtDate(new Date()) + '.txt';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function importFromFile(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        box.innerText = reader.result || '';
+        normalizeAndRender();
+        dirty = true;
+        statusEl.textContent = '가져옴 (저장 필요)';
+      };
+      reader.readAsText(file, 'utf-8');
+    }
+
+    // --- 이벤트 ---
+    btnRead.addEventListener('click', () => {
       if (!isReading) startReading();
       else stopReading();
     });
 
-    // 붙여넣기/입력 변화 감지 → 표시 갱신
-    // (입력 중 낭독을 껐다 켜면 최신 텍스트로 읽습니다)
-    box.addEventListener('input', () => {
-      if (!isReading) normalizeAndRender();
+    btnSave.addEventListener('click', () => {
+      saveToLocal();
     });
 
-    // 처음 진입 시 안내문 유지를 위해 즉시 렌더는 하지 않음
-    // normalizeAndRender();
+    btnLoad.addEventListener('click', () => {
+      if (isReading) stopReading();
+      loadFromLocal();
+    });
 
-    // iOS/Safari 일부 환경에서 TTS가 사용자 상호작용 전엔 동작하지 않을 수 있음
+    btnExport.addEventListener('click', exportToFile);
+
+    btnImport.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (file) importFromFile(file);
+      fileInput.value = ''; // 같은 파일 재선택 허용
+    });
+
+    // 입력 변화 감지 → 저장 필요 표기 (자동저장은 안 켭니다: 수동 저장 선호)
+    let inputTimer;
+    box.addEventListener('input', () => {
+      dirty = true;
+      statusEl.textContent = '저장 필요';
+      if (isReading) { // 편집 중에는 읽기를 자동 중단(안전)
+        stopReading();
+      }
+      // 입력 즉시 화면 줄 렌더(편집-읽기 전환 시 정확히 읽기 위함)
+      clearTimeout(inputTimer);
+      inputTimer = setTimeout(normalizeAndRender, 250);
+    });
+
+    // 탭/창 떠날 때 읽기 중이면 중단
     document.addEventListener('visibilitychange', () => {
       if (document.hidden && isReading) stopReading();
     });
+
+    // 초기 상태
+    statusEl.textContent = '저장 안 됨';
   </script>
 </body>
 </html>
