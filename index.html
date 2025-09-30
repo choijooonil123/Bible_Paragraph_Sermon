@@ -2,294 +2,155 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>성경 본문 · 단락별 설교 연결</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>저장된 설교 낭독 + 단락별 저장/불러오기</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    :root{
-      --line:#e5e7eb; --text:#111; --muted:#6b7280;
-      --saved-bg:#72b7ff; --saved-bd:#3180e6;
-      --brand:#2563eb;
+    body { font-family: system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans KR",sans-serif; margin: 24px; }
+    h2 { margin: 0 0 12px; }
+    .bar { display: flex; gap: 8px; align-items: center; margin: 8px 0 12px; flex-wrap: wrap; }
+    #sermonBox {
+      border: 1px solid #ddd; border-radius: 8px; padding: 12px;
+      min-height: 280px; max-height: 60vh; overflow-y: auto;
+      line-height: 1.7; white-space: pre-wrap; outline: none;
+      background: #fafafa;
     }
-    body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;color:var(--text);background:#fff;}
-    header{padding:18px 16px;border-bottom:1px solid var(--line);}
-    h1{margin:0;font-size:20px;}
-    main{max-width:960px;margin:0 auto;padding:16px;}
-    .passage{
-      border:1px solid var(--line);
-      border-radius:12px;
-      padding:12px 14px;
-      margin:12px 0;
-      background:#fafafa;
+    .line { padding: 2px 0; }
+    .highlight { background: #fff59d; border-radius: 4px; }
+    button {
+      padding: 8px 14px; border-radius: 8px; border: 1px solid #ccc; background: #fff; cursor: pointer;
     }
-    .meta{font-size:13px;color:var(--muted);margin-bottom:6px}
-    .verses{line-height:1.8;white-space:pre-wrap;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
-    .tools{display:flex;gap:8px;margin-top:10px}
-    .sermon-btn{padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer}
-    .sermon-btn.saved{background:var(--saved-bg);color:#fff;border-color:var(--saved-bd)}
-    /* 모달 */
-    .sermon-modal{position:fixed;inset:0;display:none;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center}
-    .sermon-modal.open{display:flex}
-    .sermon-card{width:min(920px,92vw);max-height:90vh;overflow:auto;background:#fff;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.2)}
-    .sermon-head{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line)}
-    .sermon-pos{font-weight:700;color:#1f2937}
-    .sermon-actions{display:flex;gap:8px;flex-wrap:wrap}
-    .sermon-actions button{padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;cursor:pointer}
-    .sermon-actions .primary{background:var(--brand);color:#fff;border-color:var(--brand)}
-    .sermon-editor{padding:12px 16px}
-    #sermonEditor{border:1px solid var(--line);border-radius:10px;background:#fafafa;min-height:260px;padding:12px;outline:none}
-    #sermonEditor:empty:before{content:"여기에 설교를 입력/붙여넣기 하세요. (이미지/표/서식 가능, 줄바꿈=절)";color:#9ca3af}
-    .highlight{background:#fff59d;border-radius:4px}
-    footer{padding:24px 16px;color:var(--muted);font-size:13px;text-align:center;border-top:1px solid var(--line)}
-    footer .bar{display:flex;gap:8px;justify-content:center;margin-bottom:12px;flex-wrap:wrap}
+    #btnRead.active { background: #9BE89B; border-color: #6bc66b; }
+    .tip { color: #666; font-size: 0.92rem; }
+    .muted { color: #888; font-size: 0.9rem; }
+    #status { margin-left: 6px; font-size: 0.9rem; }
+    .hidden { display: none; }
+    pre.demo { margin:6px 0 0; background:#f6f6f6; padding:6px 8px; border-radius:6px; }
+    .saved { background:#72b7ff !important; color:#fff; border-color:#3180e6 !important; }
   </style>
 </head>
 <body>
-  <header><h1>성경 본문 · 단락별 설교 연결</h1></header>
+  <h2>저장된 설교 낭독 (절 단위 하이라이트)</h2>
 
-  <main>
-    <!-- ✅ 예시 1: 창세기 3:1-21 단락 -->
-    <section class="passage" data-book="창세기" data-chapter="3" data-start="1" data-end="21">
-      <div class="meta">창세기 3:1–21</div>
-      <div class="verses">
-1 뱀이 여자에게 이르되… (중략)
-6 여자가 그 나무를 본즉 먹음직도 하고…
-7 이에 그들의 눈이 밝아져… 무화과 잎을 엮어…
-9 여호와 하나님이 아담을 부르시되 “네가 어디 있느냐?”
-15 내가 너로 여자와 원수가 되게 하고…
-21 여호와 하나님이 아담과 그의 아내를 위하여 가죽옷을 지어 입히시니라
-      </div>
-      <div class="tools">
-        <button class="sermon-btn">설교</button>
-      </div>
-    </section>
-
-    <!-- ✅ 예시 2: 창세기 2:4-25 단락 -->
-    <section class="passage" data-book="창세기" data-chapter="2" data-start="4" data-end="25">
-      <div class="meta">창세기 2:4–25</div>
-      <div class="verses">
-7 여호와 하나님이 흙으로 사람을 지으시고…
-15 여호와 하나님이 그 사람을 에덴에 두사 다스리며 지키게 하시고…
-18 사람이 독처하는 것이 좋지 아니하니…
-24 그러므로 남자가 부모를 떠나 아내와 합하여 한 몸을 이룰지로다
-25 두 사람이 벌거벗었으나 부끄러워 아니하니라
-      </div>
-      <div class="tools">
-        <button class="sermon-btn">설교</button>
-      </div>
-    </section>
-  </main>
-
-  <!-- 모달(편집기) -->
-  <div id="sermonModal" class="sermon-modal" role="dialog" aria-modal="true">
-    <div class="sermon-card">
-      <div class="sermon-head">
-        <div class="sermon-pos" id="sermonPos">[성경 장:절~절]</div>
-        <div class="sermon-actions">
-          <button id="btnSermonSave" class="primary">저장</button>
-          <button id="btnSermonPrint">인쇄</button>
-          <button id="btnSermonSpeak">낭독</button>
-          <button id="btnSermonClose">닫기</button>
-        </div>
-      </div>
-      <div class="sermon-editor">
-        <div id="sermonEditor" contenteditable="true" spellcheck="false"></div>
-      </div>
-    </div>
+  <div class="tip">
+    특정 성경 단락을 선택한 후, 아래 박스에 설교문을 붙여넣으세요.<br>
+    (한 줄 = 한 절)
   </div>
 
-  <footer>
-    <div class="bar">
-      <button id="btnExport">내보내기</button>
-      <input type="file" id="importFile" accept="application/json" style="display:none">
-      <button id="btnImport">가져오기</button>
-    </div>
-    단락별 “설교” 버튼은 저장되어 있으면 파란색으로 표시됩니다.
-  </footer>
+  <div class="bar">
+    <select id="selBook">
+      <option value="창세기-1-1-31">창세기 1:1–31</option>
+      <option value="창세기-2-4-25">창세기 2:4–25</option>
+      <option value="창세기-3-1-21">창세기 3:1–21</option>
+    </select>
+    <button id="btnRead">낭독</button>
+    <button id="btnSave">저장</button>
+    <button id="btnLoad">불러오기</button>
+    <button id="btnPrint">인쇄</button>
+    <button id="btnExport">전체 내보내기</button>
+    <button id="btnImport">가져오기</button>
+    <span id="status" class="muted">저장 안 됨</span>
+    <input id="fileInput" type="file" accept=".json,application/json" class="hidden" />
+  </div>
+
+  <div id="sermonBox" contenteditable="true" spellcheck="false"
+       placeholder="여기에 설교문을 붙여넣으세요."></div>
 
   <script>
-  (() => {
-    const LS_PREFIX = 'sermon-';
-    const q = s => document.querySelector(s);
-    const qa = s => Array.from(document.querySelectorAll(s));
-    const keyOf = (book, ch, s, e) => `${book}-${ch}-${s}-${e}`;
+    const box = document.getElementById('sermonBox');
+    const btnRead = document.getElementById('btnRead');
+    const btnSave = document.getElementById('btnSave');
+    const btnLoad = document.getElementById('btnLoad');
+    const btnPrint= document.getElementById('btnPrint');
+    const btnExport = document.getElementById('btnExport');
+    const btnImport = document.getElementById('btnImport');
+    const fileInput = document.getElementById('fileInput');
+    const statusEl = document.getElementById('status');
+    const selBook = document.getElementById('selBook');
 
-    const modal   = q('#sermonModal');
-    const posEl   = q('#sermonPos');
-    const editor  = q('#sermonEditor');
-    const btnSave = q('#btnSermonSave');
-    const btnPrint= q('#btnSermonPrint');
-    const btnSpeak= q('#btnSermonSpeak');
-    const btnClose= q('#btnSermonClose');
-    const btnExport = q('#btnExport');
-    const btnImport = q('#btnImport');
-    const importFile= q('#importFile');
+    let isReading = false, currentIndex = 0, lines = [];
+    let dirty = false;
 
-    let current = null;
+    const escapeHtml = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const getPlainText = el => (el.innerText || el.textContent || '').replace(/\u00A0/g, ' ');
+    const fmtDate = d => d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+'-'+String(d.getHours()).padStart(2,'0')+String(d.getMinutes()).padStart(2,'0');
 
-    function refreshButtonColor(btn){
-      const p = btn.closest('.passage');
-      const key = keyOf(p.dataset.book, p.dataset.chapter, p.dataset.start, p.dataset.end);
-      const exists = !!localStorage.getItem(LS_PREFIX+key);
-      btn.classList.toggle('saved', exists);
-    }
-    function refreshAllButtons(){ qa('.sermon-btn').forEach(refreshButtonColor); }
-
-    function openModalFor(btn){
-      const p = btn.closest('.passage');
-      const book = p.dataset.book;
-      const chapter = Number(p.dataset.chapter);
-      const start = Number(p.dataset.start);
-      const end = Number(p.dataset.end);
-
-      current = {book, chapter, start, end, button: btn};
-      posEl.textContent = `[${book} ${chapter}:${start}~${end}] 설교`;
-
-      const key = keyOf(book, chapter, start, end);
-      const raw = localStorage.getItem(LS_PREFIX+key);
-      if(raw){
-        try { editor.innerHTML = JSON.parse(raw).html || ''; }
-        catch { editor.innerHTML = ''; }
-      } else {
-        editor.innerHTML = '';
-      }
-      modal.classList.add('open');
-      editor.focus();
-    }
-    function closeModal(){
-      modal.classList.remove('open');
-      if(current?.button) refreshButtonColor(current.button);
-      current = null;
-    }
-
-    function saveCurrent(){
-      if(!current) return;
-      const {book, chapter, start, end} = current;
-      const key = keyOf(book, chapter, start, end);
-      const data = {
-        book, chapter, verseStart:start, verseEnd:end,
-        html: editor.innerHTML,
-        savedAt: new Date().toISOString()
-      };
-      localStorage.setItem(LS_PREFIX+key, JSON.stringify(data));
-      refreshButtonColor(current.button);
-      alert('저장되었습니다.');
-    }
-
-    function printCurrent(){
-      if(!current) return;
-      const {book, chapter, start, end} = current;
-      const title = `[${book} ${chapter}:${start}~${end}] 설교문`;
-      const html = `<!DOCTYPE html><html lang="ko"><head>
-        <meta charset="UTF-8"><title>${title}</title>
-        <style>
-          @media print { @page { size:A4; margin:25mm 20mm 20mm 20mm; } }
-          body{margin:0;font-family:"Noto Sans KR","Malgun Gothic",Arial,sans-serif;color:#111}
-          .wrap{max-width:720px;margin:0 auto;padding:24px 16px 60px}
-          h2{margin:0 0 12px 0;font-size:22px}
-          .pos{color:#234;margin-bottom:16px}
-          .sermon{font-size:16px;line-height:1.8;word-break:break-word}
-          img{max-width:100%;height:auto;display:block;margin:10px 0}
-          table{border-collapse:collapse;width:100%;margin:10px 0}
-          th,td{border:1px solid #ccc;padding:6px 8px}
-          .highlight{background:none !important}
-        </style></head>
-        <body><div class="wrap">
-          <h2>${title}</h2>
-          <div class="pos">위치: ${book} ${chapter}:${start}~${end}</div>
-          <div class="sermon">${editor.innerHTML}</div>
-        </div>
-        <script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script>
-        </body></html>`;
-      const w = window.open('', 'PRINT', 'width=900,height=900');
-      w.document.write(html); w.document.close(); w.focus();
-    }
-
-    let speaking = false;
-    function speakCurrent(){
-      if(speaking){ speechSynthesis.cancel(); speaking=false; btnSpeak.textContent='낭독'; unhighlight(); return; }
-      const lines = [];
-      editor.childNodes.forEach(node=>{
-        const t = (node.innerText||node.textContent||'').trim();
-        if(t) lines.push(t);
-      });
-      if(!lines.length) return;
-
-      speaking = true; btnSpeak.textContent='중지';
-      (async ()=>{
-        for(let i=0;i<lines.length;i++){
-          if(!speaking) break;
-          highlight(i);
-          await speakLine(lines[i]);
-        }
-        speaking=false; btnSpeak.textContent='낭독'; unhighlight();
-      })();
-    }
-    function speakLine(txt){
-      return new Promise(res=>{
-        const u = new SpeechSynthesisUtterance(txt);
-        u.lang='ko-KR'; u.rate=1.0; u.onend=()=>res();
-        speechSynthesis.speak(u);
-      });
+    function normalizeAndRender() {
+      const raw = getPlainText(box).trim();
+      lines = raw ? raw.split(/\r?\n/) : [];
+      box.innerHTML = lines.map(l=>`<div class="line">${escapeHtml(l)}</div>`).join('');
+      currentIndex = 0;
+      clearHighlight();
     }
     function highlight(idx){
-      [...editor.children].forEach((el,i)=>el.classList.toggle('highlight', i===idx));
-      editor.children[idx]?.scrollIntoView({block:'center',behavior:'smooth'});
+      [...box.children].forEach((el,i)=>el.classList.toggle('highlight', i===idx));
+      box.children[idx]?.scrollIntoView({block:'center',behavior:'smooth'});
     }
-    function unhighlight(){ [...editor.children].forEach(el=>el.classList.remove('highlight')); }
+    function clearHighlight(){ [...box.children].forEach(el=>el.classList.remove('highlight')); }
+
+    function speakLine(text){ return new Promise(res=>{ const u=new SpeechSynthesisUtterance(text); u.lang='ko-KR'; u.onend=()=>res(); speechSynthesis.speak(u); }); }
+    async function startReading(){
+      normalizeAndRender();
+      if(!lines.length){ stopReading(); return; }
+      isReading=true; btnRead.classList.add('active'); btnRead.textContent='중지';
+      for(let i=currentIndex;i<lines.length;i++){ if(!isReading) break; highlight(i); await speakLine(lines[i]); currentIndex=i+1; }
+      stopReading();
+    }
+    function stopReading(){ isReading=false; speechSynthesis.cancel(); btnRead.classList.remove('active'); btnRead.textContent='낭독'; currentIndex=0; clearHighlight(); }
+
+    function currentKey(){ return 'sermon-'+selBook.value; }
+
+    function saveToLocal(){
+      const raw = getPlainText(box);
+      localStorage.setItem(currentKey(), JSON.stringify({html:raw,savedAt:new Date().toISOString()}));
+      dirty=false;
+      statusEl.textContent='저장됨 ('+fmtDate(new Date())+')';
+      refreshSelectColors();
+    }
+    function loadFromLocal(){
+      const raw=localStorage.getItem(currentKey());
+      if(raw){ box.innerText=JSON.parse(raw).html; normalizeAndRender(); statusEl.textContent='불러옴'; } else { box.innerText=''; normalizeAndRender(); statusEl.textContent='저장본 없음'; }
+      dirty=false;
+    }
+    function printCurrent(){
+      const raw=localStorage.getItem(currentKey());
+      const title=selBook.value.replace(/-/g,' ');
+      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title>
+      <style>@media print{@page{size:A4;margin:25mm 20mm 20mm 20mm;}}body{font-family:"Noto Sans KR";padding:20px;}</style>
+      </head><body><h2>${title} 설교</h2><pre>${escapeHtml(box.innerText)}</pre></body></html>`;
+      const w=window.open(); w.document.write(html); w.document.close(); w.print();
+    }
 
     function exportAll(){
-      const all = {};
-      for(let i=0;i<localStorage.length;i++){
-        const k = localStorage.key(i);
-        if(k && k.startsWith(LS_PREFIX)){
-          try { all[k] = JSON.parse(localStorage.getItem(k)); } catch {}
-        }
-      }
-      const blob = new Blob([JSON.stringify(all,null,2)], {type:"application/json"});
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "sermons-backup.json";
-      a.click();
+      const all={};
+      for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k.startsWith('sermon-')) all[k]=JSON.parse(localStorage.getItem(k)); }
+      const blob=new Blob([JSON.stringify(all,null,2)],{type:"application/json"});
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='sermons-'+fmtDate(new Date())+'.json'; a.click();
     }
-
     function importAll(file){
-      const reader = new FileReader();
-      reader.onload = e=>{
-        try{
-          const data = JSON.parse(e.target.result);
-          Object.keys(data).forEach(k=>{
-            if(k.startsWith(LS_PREFIX)){
-              localStorage.setItem(k, JSON.stringify(data[k]));
-            }
-          });
-          alert("가져오기가 완료되었습니다!");
-          refreshAllButtons();
-        }catch(err){
-          alert("불러오기 실패: "+err);
-        }
-      };
-      reader.readAsText(file);
+      const reader=new FileReader();
+      reader.onload=()=>{ try{ const data=JSON.parse(reader.result); Object.keys(data).forEach(k=>{ if(k.startsWith('sermon-')) localStorage.setItem(k,JSON.stringify(data[k])); }); alert('가져오기 완료'); refreshSelectColors(); }catch(e){alert('불러오기 실패');} };
+      reader.readAsText(file,'utf-8');
     }
 
-    qa('.sermon-btn').forEach(btn=>{
-      refreshButtonColor(btn);
-      btn.addEventListener('click', ()=>openModalFor(btn));
-    });
-    btnSave.addEventListener('click', saveCurrent);
-    btnPrint.addEventListener('click', printCurrent);
-    btnSpeak.addEventListener('click', speakCurrent);
-    btnClose.addEventListener('click', ()=>{ if(speaking){speechSynthesis.cancel();speaking=false;} closeModal(); });
-    q('#sermonModal').addEventListener('click', (e)=>{ if(e.target===e.currentTarget){ if(speaking){speechSynthesis.cancel();speaking=false;} closeModal(); }});
+    function refreshSelectColors(){
+      [...selBook.options].forEach(opt=>{
+        const key='sermon-'+opt.value;
+        opt.classList.toggle('saved', !!localStorage.getItem(key));
+      });
+    }
 
-    btnExport.addEventListener('click', exportAll);
-    btnImport.addEventListener('click', ()=>importFile.click());
-    importFile.addEventListener('change', e=>{
-      if(e.target.files.length) importAll(e.target.files[0]);
-      e.target.value = '';
-    });
+    btnRead.addEventListener('click',()=>{ if(!isReading) startReading(); else stopReading(); });
+    btnSave.addEventListener('click',saveToLocal);
+    btnLoad.addEventListener('click',loadFromLocal);
+    btnPrint.addEventListener('click',printCurrent);
+    btnExport.addEventListener('click',exportAll);
+    btnImport.addEventListener('click',()=>fileInput.click());
+    fileInput.addEventListener('change',e=>{ if(e.target.files[0]) importAll(e.target.files[0]); e.target.value=''; });
+    box.addEventListener('input',()=>{ dirty=true; statusEl.textContent='저장 필요'; if(isReading) stopReading(); normalizeAndRender(); });
 
-    refreshAllButtons();
-  })();
+    document.addEventListener('visibilitychange',()=>{ if(document.hidden&&isReading) stopReading(); });
+
+    refreshSelectColors();
   </script>
 </body>
 </html>
