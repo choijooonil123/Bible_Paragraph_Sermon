@@ -1,84 +1,138 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>설교 편집</title>
-<style>
-:root{--bg:#0b1220;--card:#0f172a;--text:#e5e7eb;--muted:#9ca3af;--border:#1f2a44}
-body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,Apple SD Gothic Neo,Noto Sans KR,sans-serif}
-header{position:sticky;top:0;z-index:10;background:rgba(15,23,42,.85);backdrop-filter:saturate(140%) blur(6px);border-bottom:1px solid var(--border);}
-header .wrap{display:flex;gap:16px;align-items:center;justify-content:space-between;padding:12px 16px;max-width:1100px;margin:0 auto}
-h1{font-size:18px;margin:0;font-weight:700}
-.btn{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--border);background:#111a2e;color:var(--text);border-radius:10px;cursor:pointer;text-decoration:none}
-.btn:hover{border-color:#2b3658}
-main{max-width:1100px;margin:24px auto;padding:0 16px}
-#info{margin:6px 0 10px;color:var(--muted);font-size:14px}
-#editor{min-height:60vh;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;outline:none}
-.small{color:var(--muted);font-size:13px}
-.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}
-</style>
-<script>
-function qs(){
-  const u = new URL(location.href);
-  return {
-    book: u.searchParams.get('book') || '',
-    chap: u.searchParams.get('chap') || '',
-    start: u.searchParams.get('start') || '',
-    end: u.searchParams.get('end') || '',
-    title: u.searchParams.get('title') || ''
-  };
-}
-function storageKey(q){
-  if(q.book && q.chap && q.start && q.end){
-    return `sermon_${q.book}_${q.chap}_${q.start}_${q.end}`;
-  }
-  return 'sermon_default';
-}
-function save(){
-  const q = qs();
-  localStorage.setItem(storageKey(q), document.getElementById('editor').innerHTML);
-  alert('저장 완료');
-}
-function load(){
-  const q = qs();
-  const key = storageKey(q);
-  const v = localStorage.getItem(key);
-  const titleEl = document.getElementById('title');
-  const infoEl = document.getElementById('info');
-  if(q.title){
-    titleEl.textContent = q.title;
-  }else if(q.book){
-    titleEl.textContent = `${q.book} ${q.chap}장 ${q.start}–${q.end}절`;
-  }
-  infoEl.textContent = key;
-  if(v){ document.getElementById('editor').innerHTML = v; }
-}
-function clearAll(){
-  const q = qs();
-  const key = storageKey(q);
-  if(confirm('현재 본문에 대한 설교 내용을 모두 지울까요?')){
-    document.getElementById('editor').innerHTML = '';
-    localStorage.removeItem(key);
-  }
-}
-function back(){ history.length > 1 ? history.back() : location.href = './index.html'; }
-document.addEventListener('DOMContentLoaded', load);
-</script>
+  <meta charset="UTF-8" />
+  <title>저장된 설교 낭독(절 단위)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans KR", sans-serif; margin: 24px; }
+    h2 { margin: 0 0 12px; }
+    .bar { display: flex; gap: 8px; align-items: center; margin: 8px 0 12px; }
+    #sermonBox {
+      border: 1px solid #ddd; border-radius: 8px; padding: 12px;
+      min-height: 280px; max-height: 60vh; overflow-y: auto;
+      line-height: 1.7; white-space: pre-wrap; outline: none;
+    }
+    #sermonBox[contenteditable="true"] { background: #fafafa; }
+    .line { padding: 2px 0; }
+    .highlight { background: #fff59d; border-radius: 4px; }
+    #btnRead { padding: 8px 14px; border-radius: 8px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
+    #btnRead.active { background: #9BE89B; border-color: #6bc66b; }
+    .tip { color: #666; font-size: 0.92rem; }
+  </style>
 </head>
 <body>
-<header><div class="wrap">
-  <h1 id="title">설교 페이지</h1>
-  <div>
-    <button class="btn" onclick="back()">본문으로</button>
-    <button class="btn" onclick="save()">저장</button>
-    <button class="btn" onclick="clearAll()">이 본문 설교 삭제</button>
+  <h2>저장된 설교 낭독 (절 단위 하이라이트)</h2>
+
+  <div class="tip">아래 박스에 <b>저장된 설교문을 붙여넣으세요</b> (한 줄 = 한 절).<br/>예:
+    <pre style="margin:6px 0 0; background:#f6f6f6; padding:6px 8px; border-radius:6px;">1 태초에 하나님이 천지를 창조하시니라
+2 하나님이 가라사대 빛이 있으라 하시매...</pre>
   </div>
-</div></header>
-<main>
-  <p class="small">ChatGPT에서 출력된 설교를 <b>그대로 붙여넣기</b> 하면 스타일이 유지됩니다. 저장하면 이 브라우저의 <b>localStorage</b>에 본문별로 보존됩니다.</p>
-  <div id="info" class="small"></div>
-  <div id="editor" contenteditable="true"><h2>여기에 설교 내용을 붙여넣으세요</h2><p class="small">굵게/기울임/색상/목록 등 서식이 유지됩니다.</p></div>
-</main>
+
+  <div class="bar">
+    <button id="btnRead">낭독</button>
+    <span class="tip">읽는 동안 현재 줄을 노란색으로 표시합니다.</span>
+  </div>
+
+  <!-- 여기에 설교문을 붙여넣고 바로 낭독합니다 -->
+  <div id="sermonBox" contenteditable="true" spellcheck="false" placeholder="여기에 설교문을 붙여넣으세요. 한 줄이 한 절이 되도록 줄바꿈으로 구분하세요."></div>
+
+  <script>
+    const box = document.getElementById('sermonBox');
+    const btn = document.getElementById('btnRead');
+
+    let isReading = false;
+    let currentIndex = 0;
+    let lines = [];
+
+    // contenteditable에 붙여넣은 원문을 '줄'로 분리해서 렌더
+    function normalizeAndRender() {
+      const raw = getPlainText(box).trim();
+      lines = raw.length ? raw.split(/\r?\n/) : [];
+      box.innerHTML = lines.map(line => `<div class="line">${escapeHtml(line)}</div>`).join('') || '';
+      currentIndex = 0;
+      clearHighlight();
+    }
+
+    // contenteditable에서 순수 텍스트 얻기
+    function getPlainText(el) {
+      // 브라우저별 줄바꿈 처리 보정
+      return (el.innerText || el.textContent || '').replace(/\u00A0/g, ' ');
+    }
+
+    // HTML 이스케이프
+    function escapeHtml(s) {
+      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    // 줄 하이라이트/스크롤
+    function highlight(idx) {
+      const children = [...box.children];
+      children.forEach((el, i) => el.classList.toggle('highlight', i === idx));
+      children[idx]?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+    function clearHighlight() {
+      [...box.children].forEach(el => el.classList.remove('highlight'));
+    }
+
+    // 한 줄(절) 읽기 → Promise
+    function speakLine(text) {
+      return new Promise(resolve => {
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'ko-KR';  // 한국어
+        u.rate = 1.0;      // 속도(원하면 0.9~1.1 정도로 조절)
+        u.onstart = () => {};
+        u.onend = () => resolve();
+        speechSynthesis.speak(u);
+      });
+    }
+
+    async function startReading() {
+      // 먼저 현재 내용을 줄 단위로 정리/렌더
+      normalizeAndRender();
+      if (!lines.length) { stopReading(); return; }
+
+      isReading = true;
+      btn.classList.add('active');
+      btn.textContent = '중지';
+
+      for (let i = currentIndex; i < lines.length; i++) {
+        if (!isReading) break;
+        highlight(i);
+        await speakLine(lines[i]);
+        currentIndex = i + 1;
+      }
+      stopReading(); // 끝나면 버튼/상태 초기화
+    }
+
+    function stopReading() {
+      isReading = false;
+      speechSynthesis.cancel(); // 즉시 중지
+      btn.classList.remove('active');
+      btn.textContent = '낭독';
+      currentIndex = 0;
+      clearHighlight();
+    }
+
+    // 버튼 토글
+    btn.addEventListener('click', () => {
+      if (!isReading) startReading();
+      else stopReading();
+    });
+
+    // 붙여넣기/입력 변화 감지 → 표시 갱신
+    // (입력 중 낭독을 껐다 켜면 최신 텍스트로 읽습니다)
+    box.addEventListener('input', () => {
+      if (!isReading) normalizeAndRender();
+    });
+
+    // 처음 진입 시 안내문 유지를 위해 즉시 렌더는 하지 않음
+    // normalizeAndRender();
+
+    // iOS/Safari 일부 환경에서 TTS가 사용자 상호작용 전엔 동작하지 않을 수 있음
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && isReading) stopReading();
+    });
+  </script>
 </body>
 </html>
