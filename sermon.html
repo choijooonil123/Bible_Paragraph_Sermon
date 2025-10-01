@@ -2,55 +2,82 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>저장된 설교 낭독(절 단위) + 저장</title>
+  <title>설교 편집 · 낭독(절 단위) · 본문별 저장</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans KR", sans-serif; margin: 24px; }
-    h2 { margin: 0 0 12px; }
-    .bar { display: flex; gap: 8px; align-items: center; margin: 8px 0 12px; flex-wrap: wrap; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans KR", sans-serif; margin: 24px; color:#0b1220; }
+    h2 { margin: 0 0 6px; }
+    .sub { color:#5b6478; margin:0 0 14px; }
+    .bar { display: flex; gap: 8px; align-items: center; margin: 10px 0 12px; flex-wrap: wrap; }
     #sermonBox {
-      border: 1px solid #ddd; border-radius: 8px; padding: 12px;
-      min-height: 280px; max-height: 60vh; overflow-y: auto;
-      line-height: 1.7; white-space: pre-wrap; outline: none;
-      background: #fafafa;
+      border: 1px solid #d6dae5; border-radius: 10px; padding: 12px;
+      min-height: 280px; max-height: 60vh; overflow-y:auto;
+      line-height: 1.7; white-space: pre-wrap; outline: none; background: #fafafa;
     }
     .line { padding: 2px 0; }
     .highlight { background: #fff59d; border-radius: 4px; }
-    button {
-      padding: 8px 14px; border-radius: 8px; border: 1px solid #ccc; background: #fff; cursor: pointer;
-    }
+    button { padding: 8px 14px; border-radius: 8px; border: 1px solid #c8cede; background: #fff; cursor: pointer; }
     #btnRead.active { background: #9BE89B; border-color: #6bc66b; }
-    .tip { color: #666; font-size: 0.92rem; }
-    .muted { color: #888; font-size: 0.9rem; }
+    .muted { color: #7b8192; font-size: 0.9rem; }
     #status { margin-left: 6px; font-size: 0.9rem; }
     .hidden { display: none; }
     pre.demo { margin:6px 0 0; background:#f6f6f6; padding:6px 8px; border-radius:6px; }
+    .right { margin-left:auto }
   </style>
 </head>
 <body>
-  <h2>저장된 설교 낭독 (절 단위 하이라이트)</h2>
-
-  <div class="tip">
-    아래 박스에 <b>저장된 설교문을 붙여넣으세요</b> (한 줄 = 한 절).
-    <pre class="demo">1 태초에 하나님이 천지를 창조하시니라
-2 하나님이 가라사대 빛이 있으라 하시매...</pre>
-  </div>
+  <h2 id="title">설교 편집</h2>
+  <div id="subtitle" class="sub"></div>
 
   <div class="bar">
     <button id="btnRead">낭독</button>
     <button id="btnSave">저장</button>
-    <button id="btnLoad">불러오기</button>
+    <button id="btnLoad">불러오기(마지막)</button>
     <button id="btnExport">내보내기</button>
     <button id="btnImport">가져오기</button>
     <span id="status" class="muted">저장 안 됨</span>
+    <span class="right"></span>
+    <button id="btnBack" onclick="history.length>1?history.back():location.href='./index.html'">본문으로</button>
     <input id="fileInput" type="file" accept=".txt,text/plain" class="hidden" />
   </div>
 
-  <!-- 여기에 설교문을 붙여넣고 바로 낭독/저장 -->
-  <div id="sermonBox" contenteditable="true" spellcheck="false" placeholder="여기에 설교문을 붙여넣으세요. 한 줄이 한 절이 되도록 줄바꿈으로 구분하세요."></div>
+  <div class="muted" style="margin-bottom:6px;">
+    한 줄이 한 절이 되도록 입력/붙여넣기 해주세요. (예: <code>1 태초에 ...</code>)
+  </div>
+  <div id="sermonBox" contenteditable="true" spellcheck="false"></div>
 
   <script>
-    // --- 요소 참조 ---
+    function qs(){
+      const u = new URL(location.href);
+      return {
+        book: u.searchParams.get('book') || '',
+        chap: u.searchParams.get('chap') || '',
+        start: u.searchParams.get('start') || '',
+        end: u.searchParams.get('end') || '',
+        title: u.searchParams.get('title') || '',
+        newflag: u.searchParams.get('new') || ''
+      };
+    }
+    function keyFor(q){ return `sermon_${q.book}_${q.chap}_${q.start}_${q.end}`; }
+
+    function getSermonListSafe(key) {
+      const raw = localStorage.getItem(key);
+      if (!raw) return [];
+      try {
+        const data = JSON.parse(raw);
+        return Array.isArray(data) ? data : [];
+      } catch (e) {
+        const html = raw;
+        let title = '';
+        const m = html.match(/<h[12][^>]*>(.*?)<\/h[12]>/i);
+        if (m) title = m[1].replace(/<[^>]*>/g, '').trim();
+        const item = { title: title || '설교', date: new Date().toISOString(), content: html };
+        const arr = [item];
+        localStorage.setItem(key, JSON.stringify(arr));
+        return arr;
+      }
+    }
+
     const box = document.getElementById('sermonBox');
     const btnRead = document.getElementById('btnRead');
     const btnSave = document.getElementById('btnSave');
@@ -59,164 +86,67 @@
     const btnImport = document.getElementById('btnImport');
     const fileInput = document.getElementById('fileInput');
     const statusEl = document.getElementById('status');
+    const titleEl = document.getElementById('title');
+    const subEl = document.getElementById('subtitle');
 
-    // --- 상태 ---
-    const LS_KEY = 'sermon_saved_v1';
-    let isReading = false;
-    let currentIndex = 0;
-    let lines = [];
-    let dirty = false; // 저장 필요 여부
+    let isReading=false, currentIndex=0, lines=[], dirty=false;
 
-    // --- 유틸 ---
-    const escapeHtml = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    const getPlainText = el => (el.innerText || el.textContent || '').replace(/\u00A0/g, ' ');
-    const fmtDate = d => {
-      const z = n => String(n).padStart(2,'0');
-      return d.getFullYear() + z(d.getMonth()+1) + z(d.getDate()) + '-' + z(d.getHours()) + z(d.getMinutes());
-    };
+    const escapeHtml = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',\"'\":'&#39;'}[c]));
+    const getPlainText = el => (el.innerText || el.textContent || '').replace(/\\u00A0/g, ' ');
+    const fmtDate = d => { const z=n=>String(n).padStart(2,'0'); return d.getFullYear()+z(d.getMonth()+1)+z(d.getDate())+'-'+z(d.getHours())+z(d.getMinutes()); };
 
-    // --- 렌더/하이라이트 ---
-    function normalizeAndRender() {
+    function normalizeAndRender(){
       const raw = getPlainText(box).trim();
-      lines = raw ? raw.split(/\r?\n/) : [];
-      // contenteditable 내부를 줄(div)로 재구성
+      lines = raw ? raw.split(/\\r?\\n/) : [];
       box.innerHTML = lines.map(line => `<div class="line">${escapeHtml(line)}</div>`).join('');
-      currentIndex = 0;
-      clearHighlight();
+      currentIndex=0; clearHighlight();
     }
-
-    function highlight(idx) {
-      const children = [...box.children];
-      children.forEach((el, i) => el.classList.toggle('highlight', i === idx));
-      children[idx]?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    function highlight(idx){
+      const ch=[...box.children];
+      ch.forEach((el,i)=>el.classList.toggle('highlight', i===idx));
+      ch[idx]?.scrollIntoView({block:'center', behavior:'smooth'});
     }
-    function clearHighlight() {
-      [...box.children].forEach(el => el.classList.remove('highlight'));
-    }
-
-    // --- TTS ---
-    function speakLine(text) {
-      return new Promise(resolve => {
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = 'ko-KR';
-        u.rate = 1.0;
-        u.onend = () => resolve();
-        speechSynthesis.speak(u);
-      });
-    }
-
-    async function startReading() {
-      // 최신 내용 기준으로 읽기
-      normalizeAndRender();
-      if (!lines.length) { stopReading(); return; }
-
-      isReading = true;
-      btnRead.classList.add('active');
-      btnRead.textContent = '중지';
-
-      for (let i = currentIndex; i < lines.length; i++) {
-        if (!isReading) break;
-        highlight(i);
-        await speakLine(lines[i]);
-        currentIndex = i + 1;
-      }
+    function clearHighlight(){ [...box.children].forEach(el=>el.classList.remove('highlight')); }
+    function speakLine(text){ return new Promise(res=>{ const u=new SpeechSynthesisUtterance(text); u.lang='ko-KR'; u.rate=1.0; u.onend=()=>res(); speechSynthesis.speak(u); }); }
+    async function startReading(){
+      normalizeAndRender(); if(!lines.length){ stopReading(); return; }
+      isReading=true; btnRead.classList.add('active'); btnRead.textContent='중지';
+      for(let i=currentIndex;i<lines.length;i++){ if(!isReading) break; highlight(i); await speakLine(lines[i]); currentIndex=i+1; }
       stopReading();
     }
+    function stopReading(){ isReading=false; speechSynthesis.cancel(); btnRead.classList.remove('active'); btnRead.textContent='낭독'; currentIndex=0; clearHighlight(); }
 
-    function stopReading() {
-      isReading = false;
-      speechSynthesis.cancel();
-      btnRead.classList.remove('active');
-      btnRead.textContent = '낭독';
-      currentIndex = 0;
-      clearHighlight();
+    function loadLast(q){
+      const key=keyFor(q), arr=getSermonListSafe(key);
+      if(arr.length){ const item=arr[arr.length-1]; box.innerText=item.content||''; normalizeAndRender(); statusEl.textContent=`불러옴 (${arr.length}개 중 마지막)`; return true; }
+      box.innerText=''; normalizeAndRender(); statusEl.textContent='저장본 없음'; return false;
     }
-
-    // --- 저장/불러오기 (LocalStorage) ---
-    function saveToLocal() {
-      const raw = getPlainText(box);
-      localStorage.setItem(LS_KEY, raw);
-      dirty = false;
-      statusEl.textContent = '저장됨 (' + fmtDate(new Date()) + ')';
+    function save(q){
+      const key=keyFor(q), arr=getSermonListSafe(key), raw=getPlainText(box);
+      const suggest=(q.title||'').trim() || (raw.split(/\\r?\\n/)[0]||'설교').replace(/^\\d+\\s*/, '').slice(0,50);
+      arr.push({ title: suggest||'설교', date:new Date().toISOString(), content: raw });
+      localStorage.setItem(key, JSON.stringify(arr));
+      dirty=false; statusEl.textContent='저장됨 ('+fmtDate(new Date())+')';
     }
+    function exportFile(){ const raw=getPlainText(box); const blob=new Blob([raw], {type:'text/plain;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='sermon-'+fmtDate(new Date())+'.txt'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); }
+    function importFile(file){ const r=new FileReader(); r.onload=()=>{ box.innerText=r.result||''; normalizeAndRender(); dirty=true; statusEl.textContent='가져옴 (저장 필요)'; }; r.readAsText(file,'utf-8'); }
 
-    function loadFromLocal() {
-      const raw = localStorage.getItem(LS_KEY) || '';
-      box.innerText = raw;  // 붙여넣기처럼 텍스트로 채움
-      normalizeAndRender();
-      dirty = false;
-      statusEl.textContent = raw ? '불러옴' : '저장본 없음';
-    }
+    btnRead.addEventListener('click', ()=>{ if(!isReading) startReading(); else stopReading(); });
+    btnSave.addEventListener('click', ()=> save(qs()));
+    btnLoad.addEventListener('click', ()=>{ if(isReading) stopReading(); loadLast(qs()); });
+    btnExport.addEventListener('click', exportFile);
+    btnImport.addEventListener('click', ()=> fileInput.click());
+    fileInput.addEventListener('change', e=>{ const f=e.target.files?.[0]; if(f) importFile(f); fileInput.value=''; });
 
-    // --- 파일 내보내기/가져오기 ---
-    function exportToFile() {
-      const raw = getPlainText(box);
-      const blob = new Blob([raw], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'sermon-' + fmtDate(new Date()) + '.txt';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    }
+    let t; box.addEventListener('input', ()=>{ dirty=true; statusEl.textContent='저장 필요'; if(isReading) stopReading(); clearTimeout(t); t=setTimeout(normalizeAndRender, 250); });
+    document.addEventListener('visibilitychange', ()=>{ if(document.hidden && isReading) stopReading(); });
 
-    function importFromFile(file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        box.innerText = reader.result || '';
-        normalizeAndRender();
-        dirty = true;
-        statusEl.textContent = '가져옴 (저장 필요)';
-      };
-      reader.readAsText(file, 'utf-8');
-    }
+    const q=qs(); document.title=((q.title? (q.title+' · '):''))+'설교 편집';
+    document.getElementById('title').textContent=q.title||'설교 편집';
+    document.getElementById('subtitle').textContent=(q.book&&q.chap&&q.start&&q.end)? `${q.book} ${q.chap}장 ${q.start}–${q.end}절` : '';
 
-    // --- 이벤트 ---
-    btnRead.addEventListener('click', () => {
-      if (!isReading) startReading();
-      else stopReading();
-    });
-
-    btnSave.addEventListener('click', () => {
-      saveToLocal();
-    });
-
-    btnLoad.addEventListener('click', () => {
-      if (isReading) stopReading();
-      loadFromLocal();
-    });
-
-    btnExport.addEventListener('click', exportToFile);
-
-    btnImport.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', (e) => {
-      const file = e.target.files?.[0];
-      if (file) importFromFile(file);
-      fileInput.value = ''; // 같은 파일 재선택 허용
-    });
-
-    // 입력 변화 감지 → 저장 필요 표기 (자동저장은 안 켭니다: 수동 저장 선호)
-    let inputTimer;
-    box.addEventListener('input', () => {
-      dirty = true;
-      statusEl.textContent = '저장 필요';
-      if (isReading) { // 편집 중에는 읽기를 자동 중단(안전)
-        stopReading();
-      }
-      // 입력 즉시 화면 줄 렌더(편집-읽기 전환 시 정확히 읽기 위함)
-      clearTimeout(inputTimer);
-      inputTimer = setTimeout(normalizeAndRender, 250);
-    });
-
-    // 탭/창 떠날 때 읽기 중이면 중단
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden && isReading) stopReading();
-    });
-
-    // ✅ 페이지 로드시 저장본 자동 표시
-    loadFromLocal();  // ← 이것만 추가하면 됩니다!
+    if(q.newflag){ box.innerText=''; normalizeAndRender(); statusEl.textContent='새 설교 작성'; }
+    else { loadLast(q); }
   </script>
 </body>
 </html>
